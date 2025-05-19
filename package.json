@@ -17,6 +17,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.41.0"
+    "@anthropic-ai/sdk": "^0.41.0",
+    "browsermagic-dom": "github:gautammd/browsermagic-dom"
   }
 }

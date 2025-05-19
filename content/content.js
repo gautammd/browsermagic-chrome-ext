@@ -2,7 +2,7 @@
  * BrowserMagic.ai Content Script
  * Executes commands and provides page context for LLM-based automation
  */
-import * as DOMUtils from '../services/dom-utils.js';
+import { takeSnapshot, snapshotToPageContext } from 'browsermagic-dom';
 import { CommandExecutor } from '../services/command-executor.js';
 
 // Log initialization
@@ -72,7 +72,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     try {
       const startTime = performance.now();
       const options = message.options || {};
-      const snapshot = DOMUtils.fastSnapshot(options);
+      
+      // Use the browsermagic-dom library directly
+      const snapshot = takeSnapshot({
+        includeTitle: options.includeTitle,
+        includeMetadata: options.includeMetadata,
+        captureOutOfViewport: options.captureOutOfViewport !== false,
+        elementFilter: options.elementFilter,
+        includeShadowDOM: options.includeShadowDOM
+      });
+      
       const endTime = performance.now();
       
       console.log(`✅ Fast snapshot complete in ${(endTime - startTime).toFixed(2)}ms`);
@@ -98,7 +107,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('📑 Page title:', document.title);
       
       const startTime = performance.now();
-      const pageContext = DOMUtils.extractPageContext();
+      
+      // Take a snapshot with the browsermagic-dom library
+      const snapshot = takeSnapshot({
+        captureOutOfViewport: true, // Include elements outside viewport
+        includePosition: true,
+        includeShadowDOM: true
+      });
+      
+      // Convert to page context format
+      const pageContext = snapshotToPageContext(snapshot);
+      
       const endTime = performance.now();
       
       console.log(`✅ Page context extraction complete in ${(endTime - startTime).toFixed(2)}ms`);

@@ -2,7 +2,7 @@
  * Command Executor Module
  * Implements the Command pattern for browser automation
  */
-import * as DOMUtils from './dom-utils.js';
+import { findElementByXPath, getXPath } from 'browsermagic-dom';
 
 /**
  * Base Command class
@@ -25,14 +25,12 @@ class Command {
 class ClickCommand extends Command {
   /**
    * Create a click command
-   * @param {string|null} xpath - XPath to the element to click
-   * @param {string|null} description - Description of the element to click (fallback)
+   * @param {string} xpath - XPath to the element to click
    */
-  constructor(xpath, description) {
+  constructor(xpath) {
     super();
     this.action = 'click';
     this.xpath = xpath;
-    this.description = description;
   }
 
   /**
@@ -41,52 +39,16 @@ class ClickCommand extends Command {
    */
   async execute() {
     try {
-      if (this.xpath) {
-        return await this.clickByXPath();
-      } else if (this.description) {
-        return await this.clickByDescription();
-      } else {
+      if (!this.xpath) {
         return {
           success: false,
           action: this.action,
-          error: 'Click command requires either an xpath or description'
+          error: 'Click command requires an xpath'
         };
       }
-    } catch (error) {
-      return {
-        success: false,
-        action: this.action,
-        error: error.message,
-        xpath: this.xpath,
-        description: this.description
-      };
-    }
-  }
-
-  /**
-   * Click an element using XPath
-   * @returns {Promise<Object>} - Click result
-   */
-  async clickByXPath() {
-    try {
-      let element = null;
       
-      // Use XPath to find the element
-      try {
-        const result = document.evaluate(
-          this.xpath, 
-          document, 
-          null, 
-          XPathResult.FIRST_ORDERED_NODE_TYPE, 
-          null
-        );
-        
-        if (result.singleNodeValue) {
-          element = result.singleNodeValue;
-        }
-      } catch (xpathError) {
-        throw new Error(`Error evaluating XPath: ${xpathError.message}`);
-      }
+      // Use browsermagic-dom's findElementByXPath function
+      const element = findElementByXPath(this.xpath);
       
       // If no element found, throw error
       if (!element) {
@@ -102,36 +64,12 @@ class ClickCommand extends Command {
         xpath: this.xpath
       };
     } catch (error) {
-      throw new Error(`Failed to click by XPath: ${error.message}`);
-    }
-  }
-
-  /**
-   * Click an element using description
-   * @returns {Promise<Object>} - Click result
-   */
-  async clickByDescription() {
-    try {
-      const element = DOMUtils.findElementByDescription(this.description, 'click');
-      
-      if (!element) {
-        throw new Error(`No element found matching description: ${this.description}`);
-      }
-      
-      // Generate an XPath for reporting purposes
-      const xpath = DOMUtils.getXPath(element);
-      
-      // Click the element
-      element.click();
-      
       return {
-        success: true,
-        action: 'click',
-        description: this.description,
-        xpath // Include the generated XPath for debugging
+        success: false,
+        action: this.action,
+        error: error.message,
+        xpath: this.xpath
       };
-    } catch (error) {
-      throw new Error(`Failed to click by description: ${error.message}`);
     }
   }
 }
@@ -143,15 +81,13 @@ class ClickCommand extends Command {
 class FillCommand extends Command {
   /**
    * Create a fill command
-   * @param {string|null} xpath - XPath to the input element
-   * @param {string|null} description - Description of the input element (fallback)
+   * @param {string} xpath - XPath to the input element
    * @param {string} value - Value to fill into the input
    */
-  constructor(xpath, description, value) {
+  constructor(xpath, value) {
     super();
     this.action = 'fill';
     this.xpath = xpath;
-    this.description = description;
     this.value = value;
   }
 
@@ -161,53 +97,16 @@ class FillCommand extends Command {
    */
   async execute() {
     try {
-      if (this.xpath) {
-        return await this.fillByXPath();
-      } else if (this.description) {
-        return await this.fillByDescription();
-      } else {
+      if (!this.xpath) {
         return {
           success: false,
           action: this.action,
-          error: 'Fill command requires either an xpath or description'
+          error: 'Fill command requires an xpath'
         };
       }
-    } catch (error) {
-      return {
-        success: false,
-        action: this.action,
-        error: error.message,
-        xpath: this.xpath,
-        description: this.description,
-        value: this.value
-      };
-    }
-  }
-
-  /**
-   * Fill an input element using XPath
-   * @returns {Promise<Object>} - Fill result
-   */
-  async fillByXPath() {
-    try {
-      let element = null;
       
-      // Use XPath to find the element
-      try {
-        const result = document.evaluate(
-          this.xpath, 
-          document, 
-          null, 
-          XPathResult.FIRST_ORDERED_NODE_TYPE, 
-          null
-        );
-        
-        if (result.singleNodeValue) {
-          element = result.singleNodeValue;
-        }
-      } catch (xpathError) {
-        throw new Error(`Error evaluating XPath: ${xpathError.message}`);
-      }
+      // Use browsermagic-dom's findElementByXPath function
+      const element = findElementByXPath(this.xpath);
       
       // If no element found, throw error
       if (!element) {
@@ -224,37 +123,13 @@ class FillCommand extends Command {
         value: this.value
       };
     } catch (error) {
-      throw new Error(`Failed to fill by XPath: ${error.message}`);
-    }
-  }
-
-  /**
-   * Fill an input element using description
-   * @returns {Promise<Object>} - Fill result
-   */
-  async fillByDescription() {
-    try {
-      const element = DOMUtils.findElementByDescription(this.description, 'fill');
-      
-      if (!element) {
-        throw new Error(`No input found matching description: ${this.description}`);
-      }
-      
-      // Generate an XPath for reporting purposes
-      const xpath = DOMUtils.getXPath(element);
-      
-      // Fill the input
-      await this.fillElement(element);
-      
       return {
-        success: true,
-        action: 'fill',
-        description: this.description,
-        xpath, // Include the generated XPath for debugging
+        success: false,
+        action: this.action,
+        error: error.message,
+        xpath: this.xpath,
         value: this.value
       };
-    } catch (error) {
-      throw new Error(`Failed to fill by description: ${error.message}`);
     }
   }
 
@@ -373,9 +248,9 @@ class CommandFactory {
   static createCommand(commandData) {
     switch (commandData.action) {
       case 'click':
-        return new ClickCommand(commandData.xpath, commandData.description);
+        return new ClickCommand(commandData.xpath);
       case 'fill':
-        return new FillCommand(commandData.xpath, commandData.description, commandData.value);
+        return new FillCommand(commandData.xpath, commandData.value);
       case 'navigate':
         return new NavigateCommand(commandData.url);
       default:
