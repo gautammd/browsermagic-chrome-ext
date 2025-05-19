@@ -1,0 +1,1 @@
+Placeholder for icon files. These should be replaced with actual .png files.

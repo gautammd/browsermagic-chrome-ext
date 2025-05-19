@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrowserMagic.ai</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>BrowserMagic.ai</h1>
+      <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+    </header>
+    
+    <main>
+      <!-- Main prompt interface -->
+      <div id="prompt-view" class="view active">
+        <div class="prompt-container">
+          <textarea 
+            id="prompt-input" 
+            placeholder="Enter your instructions (e.g., 'Navigate to google.com, search for AI tools')"
+            rows="4"
+          ></textarea>
+          <button id="execute-btn">Execute</button>
+        </div>
+        <div id="status-container" class="hidden">
+          <div class="spinner"></div>
+          <p id="status-message">Processing your request...</p>
+        </div>
+      </div>
+      
+      <!-- Settings interface -->
+      <div id="settings-view" class="view">
+        <div class="settings-container">
+          <h2>LLM Provider Settings</h2>
+          
+          <div class="form-group">
+            <label for="provider-select">Provider:</label>
+            <select id="provider-select">
+              <option value="mock">Mock (Development)</option>
+              <option value="groq">Groq</option>
+              <option value="claude">Claude</option>
+            </select>
+          </div>
+          
+          <!-- Groq settings -->
+          <div id="groq-settings" class="provider-settings">
+            <div class="form-group">
+              <label for="groq-api-key">API Key:</label>
+              <input type="password" id="groq-api-key" placeholder="Enter Groq API key">
+            </div>
+            <div class="form-group">
+              <label for="groq-model">Model:</label>
+              <select id="groq-model">
+                <option value="llama-3.3-70b-versatile">LLaMA 3.3 70B Versatile</option>
+                <option value="llama-3.3-8b-versatile">LLaMA 3.3 8B Versatile</option>
+                <option value="mixtral-8x7b-32768">Mixtral 8x7B 32K</option>
+                <option value="meta-llama/llama-4-maverick-17b-128e-instruct">LLaMA 4 Maverick 17B</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="groq-temperature">Temperature:</label>
+              <input type="range" id="groq-temperature" min="0" max="1" step="0.1" value="0.3">
+              <span id="groq-temperature-value">0.3</span>
+            </div>
+          </div>
+          
+          <!-- Claude settings -->
+          <div id="claude-settings" class="provider-settings">
+            <div class="form-group">
+              <label for="claude-api-key">API Key:</label>
+              <input type="password" id="claude-api-key" placeholder="Enter Claude API key">
+            </div>
+            <div class="form-group">
+              <label for="claude-model">Model:</label>
+              <select id="claude-model">
+                <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="claude-temperature">Temperature:</label>
+              <input type="range" id="claude-temperature" min="0" max="1" step="0.1" value="0.3">
+              <span id="claude-temperature-value">0.3</span>
+            </div>
+          </div>
+          
+          <!-- Mock settings -->
+          <div id="mock-settings" class="provider-settings">
+            <div class="form-group">
+              <label for="mock-delay">Simulated Delay (ms):</label>
+              <input type="number" id="mock-delay" min="0" max="5000" value="500">
+            </div>
+          </div>
+          
+          <div class="settings-buttons">
+            <button id="save-settings-btn">Save Settings</button>
+            <button id="cancel-settings-btn">Cancel</button>
+            <button id="test-connection-btn">Test Connection</button>
+          </div>
+          
+          <div id="connection-status" class="hidden">
+            <p></p>
+          </div>
+        </div>
+      </div>
+    </main>
+    
+    <footer>
+      <p>Powered by BrowserMagic.ai</p>
+    </footer>
+  </div>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

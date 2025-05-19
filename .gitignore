@@ -1,0 +1,18 @@
+# Build output
+dist/
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
