@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply h-full;
+  }
+  
+  body {
+    @apply font-sans bg-background text-text-primary antialiased overflow-x-hidden;
+  }
+  
+  #root {
+    @apply w-full h-full;
+  }
+  
+  button, input, textarea, select {
+    @apply font-sans text-sm;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-full font-medium cursor-pointer transition-colors gap-2 border-none outline-none;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-light active:bg-primary-dark;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 text-text-primary hover:bg-gray-200 active:bg-gray-300;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-primary hover:bg-primary/5 active:bg-primary/10;
+  }
+  
+  .btn-success {
+    @apply bg-success text-white hover:bg-success/90;
+  }
+  
+  .btn-danger {
+    @apply bg-error text-white hover:bg-error/90;
+  }
+  
+  .card {
+    @apply bg-surface rounded-lg shadow-sm p-6 mb-4;
+  }
+  
+  .input-container {
+    @apply mb-4 relative;
+  }
+  
+  .input-label {
+    @apply block mb-1 text-sm font-medium text-text-secondary;
+  }
+  
+  .input {
+    @apply w-full py-2.5 px-3 rounded-md border border-border bg-surface transition-colors;
+    @apply focus:border-primary focus:outline-none;
+  }
+  
+  textarea.input {
+    @apply min-h-[100px] resize-none;
+  }
+  
+  .select {
+    @apply w-full py-2.5 px-3 rounded-md border border-border bg-surface transition-colors appearance-none;
+    @apply focus:border-primary focus:outline-none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  
+  .range {
+    @apply appearance-none w-full h-1 rounded-full bg-divider outline-none;
+  }
+  
+  .range::-webkit-slider-thumb {
+    @apply appearance-none w-4 h-4 rounded-full bg-primary cursor-pointer;
+  }
+  
+  .spinner {
+    @apply w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin-slow;
+  }
+  
+  .sidebar-container {
+    @apply flex flex-col h-screen p-4 overflow-y-auto;
+  }
+}
+
+/* Additional utility classes if needed */
+@layer utilities {
+  .text-right {
+    text-align: right;
+  }
+}

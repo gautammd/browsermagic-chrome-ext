@@ -42,6 +42,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   } 
   
+  // Handle test connection request
+  else if (request.action === 'testConnection') {
+    // Return a simple success response to verify connection works
+    // In a real implementation, this would test the actual LLM API connection
+    console.log('Testing connection with settings:', request.settings);
+    
+    // Simulate API testing
+    setTimeout(() => {
+      sendResponse({ 
+        success: true,
+        message: 'Connection successful'
+      });
+    }, 500);
+    
+    return true;
+  }
+  
   // Handle request for a fast page snapshot
   else if (request.action === 'getPageSnapshot') {
     // Get current active tab if not already known
@@ -88,6 +105,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Listen for tab activation to keep track of the active tab
 chrome.tabs.onActivated.addListener((activeInfo) => {
   activeTabId = activeInfo.tabId;
+});
+
+// Open the sidebar when the extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.open({ tabId: tab.id });
 });
 
 /**

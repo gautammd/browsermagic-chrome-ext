@@ -12,6 +12,17 @@ BrowserMagic.ai allows users to input natural language instructions that are int
 - Extract page information
 - Execute multi-step workflows
 
+## Modern React UI
+
+The extension's UI is built with React 18 and follows Apple-inspired design principles:
+
+- Clean, minimal interface with focus on user experience
+- Smooth animations and transitions
+- Consistent design language
+- Responsive and accessible components
+
+See [UI-ARCHITECTURE.md](UI-ARCHITECTURE.md) for detailed documentation on the UI implementation.
+
 ## Project Structure
 
 ```
