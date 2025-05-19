@@ -544,7 +544,7 @@ export function fastSnapshot(options = {}) {
 
       const rect = el.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
-      if (!inViewport(rect)) return;
+      // Removed inViewport check to include all elements, even those outside the viewport
 
       let visibleText = getVisibleText(el).replace(/\s+/g, ' ').trim().slice(0, 60);
       if (RELEVANT.has(el.tagName) || visibleText.length) {
@@ -555,7 +555,8 @@ export function fastSnapshot(options = {}) {
           x: Math.round(rect.x),
           y: Math.round(rect.y),
           w: Math.round(rect.width),
-          h: Math.round(rect.height)
+          h: Math.round(rect.height),
+          inViewport: inViewport(rect) // Add a flag to indicate if it's in viewport
         });
       }
 
@@ -607,7 +608,8 @@ export function extractPageContext(options = {}) {
           y: el.y, 
           width: el.w,
           height: el.h
-        }
+        },
+        inViewport: el.inViewport // Include the viewport visibility flag
       };
     }),
     isOptimized: true

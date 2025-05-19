@@ -266,15 +266,46 @@ class FillCommand extends Command {
     // Focus the element
     element.focus();
     
-    // Clear the current value
-    element.value = '';
+    const tagName = element.tagName.toLowerCase();
     
-    // Set the new value
-    element.value = this.value;
+    // Handle different input types
+    if (tagName === 'select') {
+      this.handleSelectElement(element);
+    } else {
+      // Default behavior for text inputs
+      element.value = '';
+      element.value = this.value;
+    }
     
     // Dispatch input and change events to trigger any listeners
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  
+  /**
+   * Handle select dropdown elements
+   * @param {HTMLSelectElement} selectElement - The select element
+   */
+  handleSelectElement(selectElement) {
+    const options = Array.from(selectElement.options);
+    const value = this.value;
+    
+    // Try exact match on value or text
+    let option = options.find(opt => 
+      opt.value === value || opt.text === value);
+    
+    // Try case-insensitive contains match
+    if (!option) {
+      const lowerValue = value.toLowerCase();
+      option = options.find(opt => 
+        opt.text.toLowerCase().includes(lowerValue));
+    }
+    
+    if (option) {
+      selectElement.value = option.value;
+    } else {
+      throw new Error(`Could not find option matching "${value}" in dropdown`);
+    }
   }
 }
 
