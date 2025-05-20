@@ -1,12 +1,43 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 /**
  * Enhanced hook for communicating with the extension's background script
- * Includes retry logic and timeout handling
+ * Includes retry logic, timeout handling, and progress tracking
  */
 export const useBackgroundMessaging = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState({
+    stage: 'preparing',
+    message: '',
+    progress: 0,
+    steps: [
+      { id: 'preparing', label: 'Preparing' },
+      { id: 'sending', label: 'Sending' },
+      { id: 'processing', label: 'Processing' },
+      { id: 'executing', label: 'Executing' },
+      { id: 'complete', label: 'Complete' }
+    ]
+  });
+
+  /**
+   * Listen for progress updates from the background script
+   */
+  useEffect(() => {
+    const progressListener = (message) => {
+      if (message.action === 'progressUpdate' && message.progress) {
+        setProgress(message.progress);
+      }
+    };
+    
+    // Add listener
+    chrome.runtime.onMessage.addListener(progressListener);
+    
+    // Cleanup
+    return () => {
+      chrome.runtime.onMessage.removeListener(progressListener);
+    };
+  }, []);
 
   /**
    * Send a message to the background script with retry capability
@@ -17,13 +48,22 @@ export const useBackgroundMessaging = () => {
    * @param {number} options.retries - Number of retries
    * @returns {Promise<any>} - Response from the background script
    */
-  const sendMessage = (
+  const sendMessage = useCallback((
     action, 
     data = {}, 
     options = { timeout: 30000, retries: 1 }
   ) => {
     setIsLoading(true);
     setError(null);
+    
+    // Reset progress state for new requests
+    if (action === 'processPrompt') {
+      setProgress({
+        stage: 'preparing',
+        message: 'Starting request...',
+        progress: 0
+      });
+    }
     
     return new Promise((resolve, reject) => {
       const { timeout, retries } = options;
@@ -66,11 +106,31 @@ export const useBackgroundMessaging = () => {
               if (response && response.error) {
                 const responseError = new Error(response.error);
                 responseError.isResponseError = true;
+                
+                // Update progress with error state
+                if (action === 'processPrompt') {
+                  setProgress({
+                    stage: 'error',
+                    message: `Error: ${response.error}`,
+                    progress: 0
+                  });
+                }
+                
                 return handleError(responseError);
               }
               
               // Success!
               setIsLoading(false);
+              
+              // Set complete progress for successful requests
+              if (action === 'processPrompt') {
+                setProgress({
+                  stage: 'complete',
+                  message: response.completionMessage || 'Completed successfully',
+                  progress: 100
+                });
+              }
+              
               resolve(response);
             }
           );
@@ -93,13 +153,23 @@ export const useBackgroundMessaging = () => {
         console.error(`Error in background messaging (${action}):`, error);
         setIsLoading(false);
         setError(error);
+        
+        // Update progress with error state for prompt processing
+        if (action === 'processPrompt') {
+          setProgress({
+            stage: 'error',
+            message: `Error: ${error.message}`,
+            progress: 0
+          });
+        }
+        
         reject(error);
       };
       
       // Start the first attempt
       attemptSend();
     });
-  };
+  }, []);
 
   /**
    * Process a prompt using the background script
@@ -151,7 +221,8 @@ export const useBackgroundMessaging = () => {
     updateServiceConfig,
     getPageSnapshot,
     isLoading,
-    error
+    error,
+    progress
   };
 };
 

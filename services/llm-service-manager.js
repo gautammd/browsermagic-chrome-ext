@@ -11,9 +11,23 @@ class LLMServiceManager {
     this.currentService = null;
     this.currentProvider = null;
     this.serviceConfig = {};
+    this.progressCallback = null;
     
     // Get default provider from config
     this.defaultProvider = config.get('service.defaultProvider', 'groq');
+  }
+  
+  /**
+   * Set a callback function for progress updates
+   * @param {Function} callback - Function to call with progress updates
+   */
+  setProgressCallback(callback) {
+    this.progressCallback = callback;
+    
+    // If we have a current service, propagate the callback to it
+    if (this.currentService) {
+      this.currentService.setProgressCallback(callback);
+    }
   }
 
   /**
@@ -31,6 +45,11 @@ class LLMServiceManager {
       this.currentService = LLMServiceFactory.createService(serviceProvider, config);
       this.currentProvider = serviceProvider;
       this.serviceConfig = config;
+      
+      // Transfer any existing progress callback to the new service
+      if (this.progressCallback && this.currentService.setProgressCallback) {
+        this.currentService.setProgressCallback(this.progressCallback);
+      }
       
       // Test connection
       const isConnected = await this.currentService.testConnection();

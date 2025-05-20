@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { FiSend, FiClock, FiRefreshCw } from 'react-icons/fi';
-import { Button, Card, TextareaField, StatusMessage } from '../../src/shared/components/ui';
+import { 
+  Button, 
+  Card, 
+  TextareaField, 
+  StatusMessage,
+  ProgressIndicator
+} from '../../src/shared/components/ui';
 import { usePromptHistory, useBackgroundMessaging } from '../../src/shared/hooks';
 
 /**
@@ -15,7 +21,7 @@ const PromptView = ({ settings }) => {
   
   // Custom hooks
   const { history, addToHistory, getLatest } = usePromptHistory();
-  const { processPrompt } = useBackgroundMessaging();
+  const { processPrompt, progress, isLoading } = useBackgroundMessaging();
 
   /**
    * Handle prompt execution
@@ -24,13 +30,12 @@ const PromptView = ({ settings }) => {
     if (!prompt.trim()) return;
 
     setIsProcessing(true);
-    setStatus({ message: 'Processing your request...', type: 'info' });
-
+    
     try {
       // Save to history
       addToHistory(prompt.trim());
 
-      // Process the prompt
+      // Process the prompt (progress will be tracked via the hook)
       const response = await processPrompt(prompt.trim(), settings);
       
       if (response.error) {
@@ -45,10 +50,12 @@ const PromptView = ({ settings }) => {
     } finally {
       setIsProcessing(false);
       
-      // Clear status after 3 seconds
-      setTimeout(() => {
-        setStatus({ message: '', type: 'info' });
-      }, 3000);
+      // Clear status after 3 seconds (only clear success/error messages, not progress updates)
+      if (progress.stage === 'complete' || progress.stage === 'error') {
+        setTimeout(() => {
+          setStatus({ message: '', type: 'info' });
+        }, 3000);
+      }
     }
   };
 
@@ -131,6 +138,15 @@ const PromptView = ({ settings }) => {
           {showHistory ? renderHistoryView() : renderPromptInput()}
         </div>
 
+        {/* Progress indicator - shown during processing */}
+        {isProcessing && (
+          <ProgressIndicator 
+            stage={progress.stage}
+            message={progress.message}
+            steps={progress.steps}
+          />
+        )}
+        
         <div className="flex justify-end mt-4 gap-2">
           {!showHistory && history.length > 0 && (
             <Button
@@ -153,6 +169,7 @@ const PromptView = ({ settings }) => {
           </Button>
         </div>
 
+        {/* Status message - shown for errors/success and cleared automatically */}
         {status.message && (
           <StatusMessage
             message={status.message}

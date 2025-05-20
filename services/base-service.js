@@ -10,6 +10,18 @@ import { ApiErrorHandler } from './error-handler.js';
 import { Logger } from '../src/shared/utils';
 
 /**
+ * Processing stages for progress tracking
+ */
+export const ProcessingStage = {
+  PREPARING: 'preparing',
+  SENDING: 'sending',
+  PROCESSING: 'processing',
+  EXECUTING: 'executing',
+  COMPLETE: 'complete',
+  ERROR: 'error'
+};
+
+/**
  * Base Service implementation with shared functionality
  * @extends LLMService
  */
@@ -32,6 +44,7 @@ class BaseService extends LLMService {
     this.maxTokens = config.maxTokens || 1024;
     this.apiEndpoint = config.apiEndpoint || '';
     this.provider = config.provider || '';
+    this.progressCallback = null;
     
     // Create the appropriate API adapter
     if (this.provider) {
@@ -41,6 +54,31 @@ class BaseService extends LLMService {
         Logger.warn(`Could not create adapter for ${this.provider}: ${error.message}`);
         // We'll handle the missing adapter case in the API call methods
       }
+    }
+  }
+  
+  /**
+   * Set a callback function for progress updates
+   * @param {Function} callback - Function to call with progress updates
+   */
+  setProgressCallback(callback) {
+    this.progressCallback = callback;
+  }
+  
+  /**
+   * Update processing progress
+   * @param {string} stage - Current processing stage
+   * @param {string} message - Optional status message
+   * @param {number} progress - Optional progress percentage (0-100)
+   */
+  updateProgress(stage, message = '', progress = 0) {
+    if (typeof this.progressCallback === 'function') {
+      this.progressCallback({
+        stage,
+        message,
+        progress,
+        timestamp: new Date().toISOString()
+      });
     }
   }
 
@@ -62,6 +100,12 @@ class BaseService extends LLMService {
     }
 
     try {
+      // Update progress: Preparing stage
+      this.updateProgress(
+        ProcessingStage.PREPARING, 
+        `Getting page context and formatting prompt...`
+      );
+      
       // Format the user prompt with context and history
       const userPrompt = this.formatPromptWithContext(prompt, pageContext, sessionInfo);
       const systemPrompt = this.getSystemPrompt(!!pageContext);
@@ -79,10 +123,17 @@ class BaseService extends LLMService {
         }
       );
       
+      // Update progress: Sending stage
+      this.updateProgress(
+        ProcessingStage.SENDING, 
+        `Sending request to the model...`
+      );
+      
       // Get headers from the adapter
       const headers = this.adapter.getRequestHeaders(this.apiKey);
       
       // Make the API request
+      const startTime = performance.now();
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers,
@@ -91,19 +142,42 @@ class BaseService extends LLMService {
 
       if (!response.ok) {
         const error = await ApiErrorHandler.handleApiError(response, this.provider);
+        this.updateProgress(ProcessingStage.ERROR, `Error: ${error.message}`);
         throw error;
       }
 
+      // Update progress: Processing stage
+      this.updateProgress(
+        ProcessingStage.PROCESSING, 
+        `Processing response from ${this.provider}...`
+      );
+      
       // Parse the API response
       const data = await response.json();
       
       // Use the adapter to extract content from the response
       const content = this.adapter.parseResponse(data);
       
+      // Calculate processing time
+      const endTime = performance.now();
+      const processingTime = ((endTime - startTime) / 1000).toFixed(2);
+      
+      // Update progress: Complete parsing stage
+      this.updateProgress(
+        ProcessingStage.EXECUTING, 
+        `Preparing to execute commands (completed in ${processingTime}s)...`
+      );
+      
       // Parse the content into commands
       return this.parseResponseContent(content);
     } catch (error) {
       Logger.error(`Error processing prompt with ${this.provider}:`, error);
+      
+      // Update progress with error
+      this.updateProgress(
+        ProcessingStage.ERROR, 
+        `Error: ${error.message}`
+      );
       
       // Enhance the error with more context
       const enhancedError = ApiErrorHandler.handleConnectionError(error, this.provider);

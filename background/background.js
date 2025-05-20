@@ -72,7 +72,13 @@ class BrowserManager {
     
     // Process natural language prompt
     if (request.action === 'processPrompt') {
-      this.handleUserPrompt(request.prompt, request.options || {})
+      // Include sender in options for progress updates
+      const options = { 
+        ...request.options || {},
+        sender
+      };
+      
+      this.handleUserPrompt(request.prompt, options)
         .then(response => sendResponse(response))
         .catch(error => sendResponse({ error: error.message }));
       return true; // Indicates we'll respond asynchronously
@@ -157,6 +163,17 @@ class BrowserManager {
    */
   async handleUserPrompt(prompt, options = {}) {
     try {
+      // Initialize sender for progress updates
+      const sender = options.sender || null;
+      
+      // Send initial progress update with default steps (will be updated later)
+      this.sendProgressUpdate(sender, {
+        stage: 'preparing',
+        message: 'Getting page context...',
+        progress: 0,
+        steps: this.getDefaultProgressSteps()
+      });
+      
       // Get active tab
       const tabId = await this.getActiveTabId();
       
@@ -177,8 +194,28 @@ class BrowserManager {
         this.sessionState.lastPageContext = pageContext;
       }
       
+      // Set up progress tracking callback
+      if (sender) {
+        serviceManager.setProgressCallback((progress) => {
+          this.sendProgressUpdate(sender, progress);
+        });
+      }
+      
       // Process the prompt - either using continuation commands or by querying LLM
       const structuredCommands = await this.getCommands(prompt, pageContext, isNewSession, options);
+      
+      // Update progress with LLM's custom progress steps
+      const progressSteps = structuredCommands.progressSteps || this.getDefaultProgressSteps();
+      const executingStep = progressSteps.find(s => s.id === 'executing') || 
+                           progressSteps[Math.floor(progressSteps.length * 0.75)] || // 75% of the way through steps
+                           { id: 'executing', label: 'Executing', description: 'Executing commands' };
+      
+      this.sendProgressUpdate(sender, {
+        stage: executingStep.id,
+        message: executingStep.description || `Executing ${structuredCommands.commands?.length || 0} commands...`,
+        progress: 75,
+        steps: progressSteps
+      });
       
       // Execute commands
       Logger.info(`Executing ${structuredCommands.commands?.length || 0} commands`);
@@ -188,6 +225,22 @@ class BrowserManager {
       if (!executionResults.isComplete || !structuredCommands.isComplete) {
         return await this.continueExecution(prompt, tabId, options);
       }
+      
+      // Send completion progress update with custom progress steps
+      // Use the steps we already defined earlier
+      const completeStep = progressSteps.find(s => s.id === 'complete') || 
+                          progressSteps[progressSteps.length - 1] || // Last step
+                          { id: 'complete', label: 'Complete', description: 'All steps completed' };
+      
+      this.sendProgressUpdate(sender, {
+        stage: completeStep.id,
+        message: executionResults.completionMessage || 
+                structuredCommands.completionMessage || 
+                completeStep.description || 
+                'Commands executed successfully',
+        progress: 100,
+        steps: progressSteps
+      });
       
       // Return results
       return {
@@ -199,7 +252,39 @@ class BrowserManager {
       };
     } catch (error) {
       Logger.error('Error handling user prompt:', error);
+      
+      // Send error progress update
+      if (options.sender) {
+        this.sendProgressUpdate(options.sender, {
+          stage: 'error',
+          message: `Error: ${error.message}`,
+          progress: 0,
+          steps: this.getDefaultProgressSteps() // Use default steps for error case
+        });
+      }
+      
       throw error;
+    }
+  }
+  
+  /**
+   * Send progress update to the sender
+   * @param {Object} sender - The message sender
+   * @param {Object} progress - Progress data
+   */
+  sendProgressUpdate(sender, progress) {
+    if (!sender) return;
+    
+    try {
+      // For sidebar/popup, need to use runtime messaging
+      chrome.runtime.sendMessage({
+        action: 'progressUpdate',
+        progress
+      }).catch(error => {
+        Logger.debug('Could not send runtime message, likely no listeners:', error);
+      });
+    } catch (error) {
+      Logger.warn('Error sending progress update:', error);
     }
   }
   
@@ -265,6 +350,12 @@ class BrowserManager {
     if (options.continuationCommands) {
       const commands = options.continuationCommands;
       commands.isComplete = commands.isComplete ?? false;
+      
+      // Ensure progress steps exist
+      if (!commands.progressSteps || !Array.isArray(commands.progressSteps)) {
+        commands.progressSteps = this.getDefaultProgressSteps();
+      }
+      
       return commands;
     }
     
@@ -284,7 +375,30 @@ class BrowserManager {
     
     // Ensure completion status is defined
     commands.isComplete = commands.isComplete ?? false;
+    
+    // Ensure progress steps exist (fallback to default if not provided)
+    if (!commands.progressSteps || !Array.isArray(commands.progressSteps) || commands.progressSteps.length === 0) {
+      Logger.warn('LLM did not provide valid progress steps, using defaults');
+      commands.progressSteps = this.getDefaultProgressSteps();
+    } else {
+      Logger.info(`Using LLM-provided progress steps: ${commands.progressSteps.map(s => s.label).join(', ')}`);
+    }
+    
     return commands;
+  }
+  
+  /**
+   * Get default progress steps when LLM doesn't provide them
+   * @returns {Array} Default progress steps
+   */
+  getDefaultProgressSteps() {
+    return [
+      { id: 'preparing', label: 'Preparing', description: 'Getting page context and preparing' },
+      { id: 'sending', label: 'Sending', description: 'Sending request to LLM' },
+      { id: 'processing', label: 'Processing', description: 'Processing response from LLM' },
+      { id: 'executing', label: 'Executing', description: 'Executing commands on the page' },
+      { id: 'complete', label: 'Complete', description: 'All steps completed' }
+    ];
   }
   
   /**

@@ -30,7 +30,20 @@ ALWAYS respond with VALID JSON in the following format:
     }
   ],
   "isComplete": true|false,
-  "completionMessage": "Optional message explaining the completion status"
+  "completionMessage": "Optional message explaining the completion status",
+  "progressSteps": [
+    {
+      "id": "step1",
+      "label": "First step label",
+      "description": "Detailed description of what happens in this step"
+    },
+    {
+      "id": "step2",
+      "label": "Second step label",
+      "description": "Detailed description of what happens in this step"
+    }
+    // Add more steps as needed
+  ]
 }
 
 Only use these three action types for commands: "navigate", "click", and "fill".
@@ -39,6 +52,16 @@ Always include the "isComplete" field to indicate whether the user's intended fl
 - Set "isComplete" to true when all steps needed to fulfill the user's request have been completed
 - Set "isComplete" to false when more steps are needed after these commands execute
 - Include a "completionMessage" explaining the current status and what remains to be done if incomplete
+
+Always include "progressSteps" that clearly describe what will happen during the execution of these commands:
+- Each step should represent a logical phase in completing the user's request
+- Provide 3-6 steps that describe the overall flow from start to completion
+- Write steps in plain, human-digestible language (not technical terms)
+- Use action verbs and conversational phrasing that a user would understand
+- For example: "Searching for shoes", "Finding your size", "Adding to cart"
+- Make steps specific to the user's exact request, not generic process steps
+- Each step must have an id, label (short), and description (more detailed)
+- The steps should cover the entire process from start to finish
 
 When the user provides a follow-up instruction, I will include:
 1. The initial instruction that started the session
