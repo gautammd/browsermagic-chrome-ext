@@ -1,9 +1,13 @@
 /**
- * Base Service for LLM Implementations
+ * Enhanced Base Service for LLM Implementations
  * Provides common functionality and base implementation for all LLM services
+ * Uses the adapter pattern for handling different API formats
  */
 import LLMService from './llm-service.js';
 import * as PromptTemplates from './prompt-templates.js';
+import { ApiAdapterFactory } from './adapters/index.js';
+import { ApiErrorHandler } from './error-handler.js';
+import { Logger } from '../src/shared/utils';
 
 /**
  * Base Service implementation with shared functionality
@@ -18,6 +22,7 @@ class BaseService extends LLMService {
    * @param {number} config.temperature - Sampling temperature (0.0 to 1.0)
    * @param {number} config.maxTokens - Maximum tokens to generate
    * @param {string} config.apiEndpoint - API endpoint URL
+   * @param {string} config.provider - Provider name for creating the adapter
    */
   constructor(config = {}) {
     super();
@@ -26,19 +31,84 @@ class BaseService extends LLMService {
     this.temperature = config.temperature || 0.3;
     this.maxTokens = config.maxTokens || 1024;
     this.apiEndpoint = config.apiEndpoint || '';
+    this.provider = config.provider || '';
+    
+    // Create the appropriate API adapter
+    if (this.provider) {
+      try {
+        this.adapter = ApiAdapterFactory.createAdapter(this.provider);
+      } catch (error) {
+        Logger.warn(`Could not create adapter for ${this.provider}: ${error.message}`);
+        // We'll handle the missing adapter case in the API call methods
+      }
+    }
   }
 
   /**
    * Process a natural language prompt into browser commands
-   * This is the main method that child classes should override with specific API calling logic
+   * Standardized implementation using the adapter pattern
    * @param {string} prompt - User's natural language instructions
    * @param {Object} pageContext - Context about the current page
    * @param {Object} sessionInfo - Information about the current session
    * @returns {Promise<Object>} - Structured browser commands
    */
   async processPrompt(prompt, pageContext = null, sessionInfo = {}) {
-    // Child classes should implement this method
-    throw new Error('Method not implemented. Each service must implement this method.');
+    if (!this.apiKey) {
+      throw new Error(`API key is required for ${this.provider}. Please provide an API key in the configuration.`);
+    }
+    
+    if (!this.adapter) {
+      throw new Error(`No adapter available for provider: ${this.provider}`);
+    }
+
+    try {
+      // Format the user prompt with context and history
+      const userPrompt = this.formatPromptWithContext(prompt, pageContext, sessionInfo);
+      const systemPrompt = this.getSystemPrompt(!!pageContext);
+      
+      Logger.info(`${this.provider} service processing prompt using ${this.model}`);
+      
+      // Use the adapter to format the request payload
+      const requestPayload = this.adapter.formatRequest(
+        userPrompt, 
+        systemPrompt, 
+        {
+          temperature: this.temperature,
+          maxTokens: this.maxTokens,
+          model: this.model
+        }
+      );
+      
+      // Get headers from the adapter
+      const headers = this.adapter.getRequestHeaders(this.apiKey);
+      
+      // Make the API request
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestPayload)
+      });
+
+      if (!response.ok) {
+        const error = await ApiErrorHandler.handleApiError(response, this.provider);
+        throw error;
+      }
+
+      // Parse the API response
+      const data = await response.json();
+      
+      // Use the adapter to extract content from the response
+      const content = this.adapter.parseResponse(data);
+      
+      // Parse the content into commands
+      return this.parseResponseContent(content);
+    } catch (error) {
+      Logger.error(`Error processing prompt with ${this.provider}:`, error);
+      
+      // Enhance the error with more context
+      const enhancedError = ApiErrorHandler.handleConnectionError(error, this.provider);
+      throw enhancedError;
+    }
   }
 
   /**
@@ -65,7 +135,7 @@ class BaseService extends LLMService {
       // Check if content contains markdown code blocks with JSON
       const jsonBlockMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
       if (jsonBlockMatch && jsonBlockMatch[1]) {
-        console.log('Found JSON in code block, extracting...');
+        Logger.debug('Found JSON in code block, extracting...');
         jsonContent = jsonBlockMatch[1];
       }
       
@@ -73,45 +143,34 @@ class BaseService extends LLMService {
       let parsedCommands;
       try {
         parsedCommands = JSON.parse(jsonContent);
-        console.log('Successfully parsed JSON directly');
+        Logger.debug('Successfully parsed JSON directly');
       } catch (initialError) {
         // If that fails, try to find any JSON object in the text
-        console.log('Initial JSON parse failed:', initialError.message);
+        Logger.debug('Initial JSON parse failed:', initialError.message);
         
         const jsonObjectMatch = content.match(/(\{[\s\S]*"commands"[\s\S]*?\})/);
         if (jsonObjectMatch && jsonObjectMatch[1]) {
-          console.log('Found potential JSON object, attempting to parse...');
+          Logger.debug('Found potential JSON object, attempting to parse...');
           jsonContent = jsonObjectMatch[1];
           try {
             parsedCommands = JSON.parse(jsonContent);
-            console.log('Successfully parsed extracted JSON object');
+            Logger.debug('Successfully parsed extracted JSON object');
           } catch (extractError) {
-            console.error('Failed to parse extracted JSON:', extractError.message);
+            Logger.error('Failed to parse extracted JSON:', extractError.message);
             throw extractError;
           }
         } else {
-          console.error('No JSON object found in content');
+          Logger.error('No JSON object found in content');
           throw initialError;
         }
       }
       
       return parsedCommands;
     } catch (parseError) {
-      console.error('Failed to parse JSON response:', parseError);
+      Logger.error('Failed to parse JSON response:', parseError);
       
-      // Create a fallback object with the raw content if parsing fails
-      return {
-        commands: [
-          {
-            action: "error",
-            message: "Failed to parse JSON response. Please try again.",
-            errorDetail: parseError.message,
-            rawContent: content.substring(0, 500) + (content.length > 500 ? '...' : '')
-          }
-        ],
-        isComplete: false,
-        completionMessage: "Error parsing response"
-      };
+      // Use the error handler to create a standardized fallback response
+      return ApiErrorHandler.handleParsingError(parseError, content);
     }
   }
 
@@ -125,62 +184,43 @@ class BaseService extends LLMService {
   }
 
   /**
-   * Test the connection to the service
-   * This is a default implementation that should be overridden by child classes
+   * Test the connection to the service using the adapter
    * @returns {Promise<boolean>} - True if connection is successful
    */
   async testConnection() {
     if (!this.apiKey) {
-      console.error('No API key provided');
+      Logger.error(`No API key provided for ${this.provider} connection test`);
       return false;
     }
-
-    try {
-      // Child classes should implement their own test connection logic
-      // This default implementation just returns true for services that don't need testing
-      return true;
-    } catch (error) {
-      console.error(`Error testing connection:`, error);
-      return false;
-    }
-  }
-
-  /**
-   * Handle API errors consistently
-   * @param {Response} response - Fetch API response
-   * @returns {Promise<Error>} - Standardized error
-   */
-  async handleApiError(response) {
-    let errorMessage = response.statusText;
     
+    if (!this.adapter) {
+      Logger.error(`No adapter available for provider: ${this.provider}`);
+      return false;
+    }
+
     try {
-      const errorData = await response.json();
-      console.error(`API error details:`, errorData);
+      Logger.info(`Testing connection to ${this.provider} API (${this.apiEndpoint})`);
       
-      if (errorData.error) {
-        if (typeof errorData.error === 'string') {
-          errorMessage = errorData.error;
-        } else if (errorData.error.message) {
-          errorMessage = errorData.error.message;
-        } else {
-          errorMessage = JSON.stringify(errorData.error);
-        }
-      }
-    } catch (parseError) {
-      console.error('Could not parse error response:', parseError);
-      // Use response text as fallback if JSON parsing fails
-      try {
-        const errorText = await response.text();
-        console.error('Error response text:', errorText);
-        if (errorText) {
-          errorMessage = errorText;
-        }
-      } catch (textError) {
-        console.error('Could not get error response text:', textError);
-      }
+      // Use the adapter to format a test request
+      const testPayload = this.adapter.formatTestRequest({ model: this.model });
+      
+      // Get headers from the adapter
+      const headers = this.adapter.getRequestHeaders(this.apiKey);
+      
+      // Make the API request
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(testPayload)
+      });
+
+      Logger.debug(`Test response status: ${response.status} ${response.statusText}`);
+      
+      return response.ok;
+    } catch (error) {
+      Logger.error(`Error testing connection to ${this.provider}:`, error);
+      return false;
     }
-    
-    return new Error(`API Error: ${errorMessage}`);
   }
 }
 

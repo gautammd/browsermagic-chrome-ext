@@ -1,6 +1,7 @@
 // Import the LLM service manager
 import serviceManager from '../services/llm-service-manager.js';
 import config from '../services/config.js';
+import { Logger } from '../src/shared/utils';
 
 // Store active tab information and conversation history
 let activeTabId = null;

@@ -1,6 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./sidebar/**/*.{js,jsx,ts,tsx}', './popup/**/*.{js,jsx,ts,tsx}'],
+  content: [
+    './sidebar/**/*.{js,jsx,ts,tsx}',
+    './src/shared/components/**/*.{js,jsx,ts,tsx}'
+  ],
   theme: {
     extend: {
       colors: {

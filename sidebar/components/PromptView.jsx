@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import { FiSend, FiClock, FiRefreshCw } from 'react-icons/fi';
-import Button from './ui/Button';
-import Card from './ui/Card';
-import TextareaField from './ui/TextareaField';
-import StatusMessage from './ui/StatusMessage';
-import usePromptHistory from '../hooks/usePromptHistory';
-import useBackgroundMessaging from '../hooks/useBackgroundMessaging';
+import { Button, Card, TextareaField, StatusMessage } from '../../src/shared/components/ui';
+import { usePromptHistory, useBackgroundMessaging } from '../../src/shared/hooks';
 
 /**
  * Prompt input view for executing commands
@@ -168,9 +164,8 @@ const PromptView = ({ settings }) => {
       <div className="mt-4 text-center text-xs text-text-tertiary">
         <p>Using {settings.provider} as provider</p>
         <p>
-          {settings.provider === 'mock' && 'Mock mode (For development)'}
           {settings.provider === 'groq' && `Model: ${settings.providers.groq.model}`}
-          {settings.provider === 'claude' && `Model: ${settings.providers.claude.model}`}
+          {settings.provider === 'openai' && `Model: ${settings.providers.openai?.model || 'gpt-4o'}`}
         </p>
       </div>
     </div>

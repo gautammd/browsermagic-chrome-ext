@@ -318,3 +318,10 @@ textarea.input {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Special styles for settings button */
+.settings-button svg {
+  color: var(--color-text-primary);
+  stroke: currentColor;
+  stroke-width: 2px;
+}

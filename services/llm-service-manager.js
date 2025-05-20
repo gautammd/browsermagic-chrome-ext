@@ -1,4 +1,6 @@
 import LLMServiceFactory from './llm-service-factory.js';
+import { AppError, ErrorType } from './error-handler.js';
+import { Logger, config } from '../src/shared/utils';
 
 /**
  * Manager class for LLM service operations
@@ -10,8 +12,8 @@ class LLMServiceManager {
     this.currentProvider = null;
     this.serviceConfig = {};
     
-    // Default to mock service in development
-    this.defaultProvider = 'mock';
+    // Get default provider from config
+    this.defaultProvider = config.get('service.defaultProvider', 'groq');
   }
 
   /**
@@ -34,24 +36,30 @@ class LLMServiceManager {
       const isConnected = await this.currentService.testConnection();
       
       if (!isConnected) {
-        console.warn(`Failed to connect to ${serviceProvider} service. Check configuration.`);
+        Logger.warn(`Failed to connect to ${serviceProvider} service. Check configuration.`);
+        
+        // Only fall back if we're not already using the default provider
         if (serviceProvider !== this.defaultProvider) {
-          console.warn(`Falling back to ${this.defaultProvider} service.`);
+          Logger.warn(`Falling back to ${this.defaultProvider} service.`);
           return this.initialize(this.defaultProvider, {});
         }
       }
       
       return isConnected;
     } catch (error) {
-      console.error('Error initializing LLM service:', error);
+      Logger.error('Error initializing LLM service:', error);
       
       // If not already using default, try falling back
       if (provider !== this.defaultProvider) {
-        console.warn(`Falling back to ${this.defaultProvider} service.`);
+        Logger.warn(`Falling back to ${this.defaultProvider} service.`);
         return this.initialize(this.defaultProvider, {});
       }
       
-      return false;
+      throw new AppError(`Failed to initialize any LLM service`, {
+        type: ErrorType.SERVICE_UNAVAILABLE,
+        source: 'llm-service-manager',
+        originalError: error
+      });
     }
   }
 
@@ -68,11 +76,10 @@ class LLMServiceManager {
     }
     
     try {
-      console.log(`📡 LLMServiceManager: Processing prompt with ${this.currentProvider} service`);
-      console.log(`📊 LLMServiceManager: Service config: ${JSON.stringify(this.serviceConfig)}`);
+      Logger.info(`Processing prompt with ${this.currentProvider} service`);
       
       if (sessionInfo && sessionInfo.actionHistory) {
-        console.log(`🔄 LLMServiceManager: Including session history with ${sessionInfo.actionHistory.length} previous actions`);
+        Logger.debug(`Including session history with ${sessionInfo.actionHistory.length} previous actions`);
       }
       
       const startTime = performance.now();
@@ -81,11 +88,11 @@ class LLMServiceManager {
       
       const endTime = performance.now();
       const processingTime = (endTime - startTime) / 1000;
-      console.log(`✅ LLMServiceManager: Successfully processed prompt with ${this.currentProvider} service in ${processingTime.toFixed(2)}s`);
+      Logger.info(`Successfully processed prompt with ${this.currentProvider} service in ${processingTime.toFixed(2)}s`);
       
       return result;
     } catch (error) {
-      console.error(`❌ LLMServiceManager: Error processing prompt with ${this.currentProvider} service:`, error);
+      Logger.error(`Error processing prompt with ${this.currentProvider} service:`, error);
       throw error;
     }
   }
@@ -103,12 +110,12 @@ class LLMServiceManager {
     
     if (!command.description || !pageContext) {
       // If we don't have a description or page context, return the original command
-      console.log(`ℹ️ LLMServiceManager: Skipping XPath refinement - missing description or page context`);
+      Logger.debug(`Skipping XPath refinement - missing description or page context`);
       return command;
     }
     
     try {
-      console.log(`🔍 LLMServiceManager: Refining XPath for "${command.description}" with ${this.currentProvider} service`);
+      Logger.info(`Refining XPath for "${command.description}" with ${this.currentProvider} service`);
       
       // Create a special prompt for the refinement
       const refinementPrompt = `I need to ${command.action} the element described as: "${command.description}".
@@ -116,19 +123,14 @@ Please analyze the interactive elements list to provide the exact XPath for this
 If you find a matching element in the interactive elements list, use its exact XPath.
 If not, suggest a description that might be better for finding the element.`;
       
-      const startTime = performance.now();
-      
       // Process the prompt with the page context
       const result = await this.currentService.processPrompt(refinementPrompt, pageContext);
-      
-      const endTime = performance.now();
-      const processingTime = (endTime - startTime) / 1000;
       
       // Extract the XPath from the response
       if (result && result.commands && result.commands.length > 0) {
         const firstCommand = result.commands[0];
         if (firstCommand.xpath) {
-          console.log(`✅ LLMServiceManager: Successfully refined XPath to "${firstCommand.xpath}" in ${processingTime.toFixed(2)}s`);
+          Logger.info(`Successfully refined XPath to "${firstCommand.xpath}"`);
           // Return a new command with the refined XPath
           return {
             ...command,
@@ -137,11 +139,11 @@ If not, suggest a description that might be better for finding the element.`;
         }
       }
       
-      console.log(`⚠️ LLMServiceManager: Could not refine XPath in ${processingTime.toFixed(2)}s - keeping original`);
+      Logger.warn(`Could not refine XPath - keeping original`);
       // If we couldn't get a refined XPath, return the original command
       return command;
     } catch (error) {
-      console.error(`❌ LLMServiceManager: Error refining XPath:`, error);
+      Logger.error(`Error refining XPath:`, error);
       // Return the original command if refinement fails
       return command;
     }
@@ -163,6 +165,14 @@ If not, suggest a description that might be better for finding the element.`;
    */
   async changeProvider(provider, config = {}) {
     return this.initialize(provider, config);
+  }
+  
+  /**
+   * Get supported provider names
+   * @returns {string[]} Array of supported provider names
+   */
+  getSupportedProviders() {
+    return ['groq', 'openai'];
   }
 }
 

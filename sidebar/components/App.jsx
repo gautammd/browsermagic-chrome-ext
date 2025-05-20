@@ -3,7 +3,7 @@ import Header from './Header';
 import Footer from './Footer';
 import PromptView from './PromptView';
 import SettingsView from './SettingsView';
-import { getSettings } from '../hooks/useStorage';
+import { getSettings } from '../../src/shared/hooks';
 
 /**
  * Main App component for the sidebar
@@ -14,20 +14,19 @@ const App = () => {
   
   // Settings state
   const [settings, setSettings] = useState({
-    provider: 'mock',
+    provider: 'groq',
     providers: {
-      mock: {
-        delay: 500,
-      },
       groq: {
         apiKey: '',
         model: 'llama-3.3-70b-versatile',
         temperature: 0.3,
+        maxTokens: 1024,
       },
-      claude: {
+      openai: {
         apiKey: '',
-        model: 'claude-3-7-sonnet-20250219',
+        model: 'gpt-4o',
         temperature: 0.3,
+        maxTokens: 1024,
       },
     },
   });

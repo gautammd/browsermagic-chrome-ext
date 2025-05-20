@@ -1,6 +1,6 @@
 import React from 'react';
-import { FiSettings, FiX } from 'react-icons/fi';
-import Button from './ui/Button';
+// Using inline SVG instead of react-icons
+import { Button } from '../../src/shared/components/ui';
 
 /**
  * Header component with title and settings toggle
@@ -12,18 +12,12 @@ const Header = ({ activeView, onToggleView }) => {
         BrowserMagic.ai
       </h1>
       
-      <Button
-        variant="ghost"
-        className="w-8 h-8 p-1.5 rounded-full"
+      <button
+        className="btn btn-primary px-3 py-1 rounded-md text-white"
         onClick={onToggleView}
-        aria-label={activeView === 'prompt' ? 'Settings' : 'Close Settings'}
       >
-        {activeView === 'prompt' ? (
-          <FiSettings size={20} />
-        ) : (
-          <FiX size={20} />
-        )}
-      </Button>
+        {activeView === 'prompt' ? 'Settings' : 'Close'}
+      </button>
     </header>
   );
 };

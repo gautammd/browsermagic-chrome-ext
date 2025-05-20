@@ -2,9 +2,7 @@
  * Factory class for creating LLM service instances
  */
 import GroqService from './groq-service.js';
-import MetaService from './meta-service.js';
-import MockService from './mock-service.js';
-import ClaudeService from './claude-service.js';
+import OpenAIService from './openai-service.js';
 
 /**
  * Factory class for creating LLM service instances
@@ -13,7 +11,7 @@ import ClaudeService from './claude-service.js';
 class LLMServiceFactory {
   /**
    * Create an LLM service instance based on the provider name
-   * @param {string} provider - The service provider name ('groq', 'meta', 'claude', 'mock', etc.)
+   * @param {string} provider - The service provider name ('groq', 'openai', etc.)
    * @param {Object} config - Configuration object for the service
    * @returns {LLMService} - An instance of the requested LLM service
    */
@@ -21,15 +19,11 @@ class LLMServiceFactory {
     switch (provider.toLowerCase()) {
       case 'groq':
         return new GroqService(config);
-      case 'meta':
-        return new MetaService(config);
-      case 'claude':
-        return new ClaudeService(config);
-      case 'mock':
-        return new MockService(config);
+      case 'openai':
+        return new OpenAIService(config);
       default:
-        console.warn(`Unknown provider: ${provider}. Using MockService as fallback.`);
-        return new MockService(config);
+        console.warn(`Unknown provider: ${provider}. Using Groq as fallback.`);
+        return new GroqService(config);
     }
   }
 }

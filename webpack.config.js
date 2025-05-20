@@ -7,7 +7,6 @@ module.exports = {
   entry: {
     background: './background/background.js',
     content: './content/content.js',
-    popup: './popup/popup.jsx',
     sidebar: './sidebar/sidebar.jsx'
   },
   stats: {
@@ -44,7 +43,6 @@ module.exports = {
       patterns: [
         { from: 'manifest.json', to: '.' },
         { from: 'assets', to: 'assets' },
-        { from: 'popup/popup.html', to: 'popup/popup.html' },
         { from: 'sidebar/sidebar.html', to: 'sidebar/sidebar.html' },
         { from: 'services/*.js', to: 'services/[name][ext]' },
       ],

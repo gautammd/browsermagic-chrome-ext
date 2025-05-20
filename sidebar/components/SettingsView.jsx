@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
 import { FiSave } from 'react-icons/fi';
-import Button from './ui/Button';
-import Card from './ui/Card';
-import StatusMessage from './ui/StatusMessage';
-import ProviderSelector from './settings/ProviderSelector';
-import GroqSettings from './settings/GroqSettings';
-import ClaudeSettings from './settings/ClaudeSettings';
-import MockSettings from './settings/MockSettings';
-import { saveSettings } from '../hooks/useStorage';
-import useBackgroundMessaging from '../hooks/useBackgroundMessaging';
+import { Button, Card, StatusMessage } from '../../src/shared/components/ui';
+import { ProviderSelector, GroqSettings, OpenAISettings } from '../../src/shared/components/settings';
+import { saveSettings, useBackgroundMessaging } from '../../src/shared/hooks';
 
 /**
  * Settings view component for configuring providers
@@ -104,18 +98,11 @@ const SettingsView = ({ settings, setSettings, onClose }) => {
             onChange={(key, value) => handleSettingChange('groq', key, value)}
           />
         );
-      case 'claude':
+      case 'openai':
         return (
-          <ClaudeSettings
-            settings={localSettings.providers.claude}
-            onChange={(key, value) => handleSettingChange('claude', key, value)}
-          />
-        );
-      case 'mock':
-        return (
-          <MockSettings
-            settings={localSettings.providers.mock}
-            onChange={(key, value) => handleSettingChange('mock', key, value)}
+          <OpenAISettings
+            settings={localSettings.providers.openai || {}}
+            onChange={(key, value) => handleSettingChange('openai', key, value)}
           />
         );
       default:
