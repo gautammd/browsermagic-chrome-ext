@@ -199,10 +199,11 @@ export const useBackgroundMessaging = () => {
    * Update service configuration
    * @param {string} provider - Provider name
    * @param {object} config - Provider configuration
+   * @param {object} features - Feature flags
    * @returns {Promise<object>} - Response from background script
    */
-  const updateServiceConfig = (provider, config) => {
-    return sendMessage('updateServiceConfig', { provider, config });
+  const updateServiceConfig = (provider, config, features) => {
+    return sendMessage('updateServiceConfig', { provider, config, features });
   };
 
   /**

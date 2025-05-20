@@ -7,7 +7,7 @@ import LLMService from './llm-service.js';
 import * as PromptTemplates from './prompt-templates.js';
 import { ApiAdapterFactory } from './adapters/index.js';
 import { ApiErrorHandler } from './error-handler.js';
-import { Logger } from '../src/shared/utils';
+import { Logger, config } from '../src/shared/utils';
 
 /**
  * Processing stages for progress tracking
@@ -134,6 +134,21 @@ class BaseService extends LLMService {
       
       // Make the API request
       const startTime = performance.now();
+      
+      // Basic request logging
+      Logger.info(`API Request to ${this.provider} (${this.model}):`, {
+        endpoint: this.apiEndpoint,
+        method: 'POST',
+        headers: { ...headers, Authorization: 'Bearer [REDACTED]' }
+      });
+      
+      // Detailed API logging when enabled
+      if (config.get('app.features.detailedApiLogging', false)) {
+        const requestBody = JSON.stringify(requestPayload, null, 2);
+        Logger.debug(`Request payload (${this.provider}):`, requestPayload);
+        Logger.debug(`Raw request body:\n${requestBody}`);
+      }
+      
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers,
@@ -154,6 +169,21 @@ class BaseService extends LLMService {
       
       // Parse the API response
       const data = await response.json();
+      
+      // Basic response data logging
+      Logger.info(`API Response from ${this.provider} (${this.model}):`, {
+        status: response.status,
+        statusText: response.statusText,
+        timestamp: new Date().toISOString(),
+        responseTimeMs: performance.now() - startTime
+      });
+      
+      // Detailed API logging when enabled
+      if (config.get('app.features.detailedApiLogging', false)) {
+        // Log full structured response
+        Logger.debug(`Response data (${this.provider}):`);
+        Logger.debug(JSON.stringify(data, null, 2));
+      }
       
       // Use the adapter to extract content from the response
       const content = this.adapter.parseResponse(data);
@@ -281,14 +311,46 @@ class BaseService extends LLMService {
       // Get headers from the adapter
       const headers = this.adapter.getRequestHeaders(this.apiKey);
       
+      // Basic test request logging
+      Logger.info(`API Test Request to ${this.provider}:`, {
+        endpoint: this.apiEndpoint,
+        method: 'POST',
+        headers: { ...headers, Authorization: 'Bearer [REDACTED]' }
+      });
+      
+      // Detailed API logging when enabled
+      if (config.get('app.features.detailedApiLogging', false)) {
+        const testRequestBody = JSON.stringify(testPayload, null, 2);
+        Logger.debug(`Test request payload (${this.provider}):`, testPayload);
+        Logger.debug(`Raw test request body:\n${testRequestBody}`);
+      }
+      
       // Make the API request
+      const startTime = performance.now();
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify(testPayload)
       });
-
-      Logger.debug(`Test response status: ${response.status} ${response.statusText}`);
+      
+      // Basic test response logging
+      Logger.info(`API Test Response from ${this.provider}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        timestamp: new Date().toISOString(),
+        responseTimeMs: performance.now() - startTime
+      });
+      
+      // Detailed API logging when enabled
+      if (config.get('app.features.detailedApiLogging', false) && response.ok) {
+        try {
+          const responseData = await response.clone().json();
+          Logger.debug(`Test response data (${this.provider}):`);
+          Logger.debug(JSON.stringify(responseData, null, 2));
+        } catch (parseError) {
+          Logger.debug(`Could not parse test response as JSON: ${parseError.message}`);
+        }
+      }
       
       return response.ok;
     } catch (error) {

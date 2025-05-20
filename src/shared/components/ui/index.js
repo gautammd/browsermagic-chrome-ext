@@ -1,5 +1,6 @@
 export { default as Button } from './Button';
 export { default as Card } from './Card';
+export { default as CheckField } from './CheckField';
 export { default as InputField } from './InputField';
 export { default as ProgressIndicator } from './ProgressIndicator';
 export { default as RangeField } from './RangeField';

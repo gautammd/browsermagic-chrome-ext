@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { FiSave } from 'react-icons/fi';
 import { Button, Card, StatusMessage } from '../ui';
-import { ProviderSelector, GroqSettings, OpenAISettings } from '.';
+import { ProviderSelector, GroqSettings, OpenAISettings, DeveloperSettings } from '.';
 
 /**
  * Settings view component for configuring providers
  */
 const SettingsView = ({ settings, onSave, onClose, serviceTester }) => {
-  const [localSettings, setLocalSettings] = useState(settings);
+  const [localSettings, setLocalSettings] = useState({
+    ...settings,
+    features: settings.features || { detailedApiLogging: false }
+  });
   const [status, setStatus] = useState({ message: '', type: 'info' });
   const [isSaving, setIsSaving] = useState(false);
   
@@ -33,6 +36,19 @@ const SettingsView = ({ settings, onSave, onClose, serviceTester }) => {
           ...prev.providers[provider],
           [key]: value
         }
+      }
+    }));
+  };
+  
+  /**
+   * Handle feature flag change
+   */
+  const handleFeatureChange = (key, value) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        [key]: value
       }
     }));
   };
@@ -129,6 +145,12 @@ const SettingsView = ({ settings, onSave, onClose, serviceTester }) => {
       />
       
       {renderProviderSettings()}
+      
+      {/* Developer settings for advanced configuration */}
+      <DeveloperSettings 
+        settings={localSettings.features} 
+        onChange={handleFeatureChange} 
+      />
       
       <div className="mt-6 flex justify-between">
         <Button 

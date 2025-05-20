@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { FiSave } from 'react-icons/fi';
 import { Button, Card, StatusMessage } from '../../src/shared/components/ui';
-import { ProviderSelector, GroqSettings, OpenAISettings } from '../../src/shared/components/settings';
+import { ProviderSelector, GroqSettings, OpenAISettings, DeveloperSettings } from '../../src/shared/components/settings';
 import { saveSettings, useBackgroundMessaging } from '../../src/shared/hooks';
 
 /**
  * Settings view component for configuring providers
  */
 const SettingsView = ({ settings, setSettings, onClose }) => {
-  const [localSettings, setLocalSettings] = useState(settings);
+  const [localSettings, setLocalSettings] = useState({
+    ...settings,
+    features: settings.features || { detailedApiLogging: false }
+  });
   const [status, setStatus] = useState({ message: '', type: 'info' });
   const [isSaving, setIsSaving] = useState(false);
   
@@ -39,6 +42,19 @@ const SettingsView = ({ settings, setSettings, onClose }) => {
       }
     }));
   };
+  
+  /**
+   * Handle feature flag change
+   */
+  const handleFeatureChange = (key, value) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        [key]: value
+      }
+    }));
+  };
 
   /**
    * Handle settings save
@@ -52,7 +68,8 @@ const SettingsView = ({ settings, setSettings, onClose }) => {
       // Update service configuration in background
       await updateServiceConfig(
         localSettings.provider, 
-        localSettings.providers[localSettings.provider]
+        localSettings.providers[localSettings.provider],
+        localSettings.features
       );
       
       // Update parent component state
@@ -120,6 +137,12 @@ const SettingsView = ({ settings, setSettings, onClose }) => {
         
         <div className="mt-6">
           {renderProviderSettings()}
+          
+          {/* Developer settings */}
+          <DeveloperSettings 
+            settings={localSettings.features} 
+            onChange={handleFeatureChange} 
+          />
         </div>
         
         <div className="flex justify-between mt-8 gap-4">

@@ -4,8 +4,8 @@
  * between the sidebar UI and content script.
  */
 import serviceManager from '../services/llm-service-manager.js';
-import config from '../services/config.js';
-import { Logger } from '../src/shared/utils';
+import serviceConfig from '../services/config.js';
+import { Logger, config } from '../src/shared/utils';
 
 /**
  * BrowserManager class that handles tab interaction, commands execution, and state management
@@ -48,9 +48,16 @@ class BrowserManager {
   async initServices() {
     try {
       // Load saved configuration from storage
-      const result = await this.getStorageData(['provider', 'serviceConfig']);
-      const savedProvider = result.provider || config.defaultProvider;
-      const savedConfig = result.serviceConfig || config.providers[savedProvider] || {};
+      const result = await this.getStorageData(['provider', 'serviceConfig', 'features']);
+      const savedProvider = result.provider || serviceConfig.defaultProvider;
+      const savedConfig = result.serviceConfig || serviceConfig.providers[savedProvider] || {};
+      const savedFeatures = result.features || {};
+      
+      // Initialize feature flags
+      if (savedFeatures.detailedApiLogging !== undefined) {
+        config.set('app.features.detailedApiLogging', savedFeatures.detailedApiLogging);
+        Logger.debug(`Detailed API logging ${savedFeatures.detailedApiLogging ? 'enabled' : 'disabled'} from saved settings`);
+      }
       
       const initialized = await serviceManager.initialize(savedProvider, savedConfig);
       
@@ -111,7 +118,7 @@ class BrowserManager {
     
     // Update service configuration
     else if (request.action === 'updateServiceConfig') {
-      this.updateServiceConfig(request.provider, request.config)
+      this.updateServiceConfig(request.provider, request.config, request.features)
         .then(success => sendResponse({ success }))
         .catch(error => sendResponse({ error: error.message }));
       
@@ -216,6 +223,11 @@ class BrowserManager {
         progress: 75,
         steps: progressSteps
       });
+      
+      // Log structured commands before execution if detailed logging is enabled
+      if (config.get('app.features.detailedApiLogging', false)) {
+        Logger.debug('Structured commands from LLM:', JSON.stringify(structuredCommands, null, 2));
+      }
       
       // Execute commands
       Logger.info(`Executing ${structuredCommands.commands?.length || 0} commands`);
@@ -634,17 +646,28 @@ class BrowserManager {
    * Update service configuration
    * @param {string} provider - Provider name
    * @param {Object} newConfig - New configuration
+   * @param {Object} features - Feature flags
    * @returns {Promise<boolean>} Success
    */
-  async updateServiceConfig(provider, newConfig) {
+  async updateServiceConfig(provider, newConfig, features) {
     try {
       // Save to storage
       await new Promise((resolve) => {
         chrome.storage.local.set({
           provider,
-          serviceConfig: newConfig
+          serviceConfig: newConfig,
+          features: features || {}
         }, resolve);
       });
+      
+      // Update application config if features were provided
+      if (features) {
+        // Update detailed API logging setting
+        if (features.detailedApiLogging !== undefined) {
+          config.set('app.features.detailedApiLogging', features.detailedApiLogging);
+          Logger.debug(`Detailed API logging ${features.detailedApiLogging ? 'enabled' : 'disabled'}`);
+        }
+      }
       
       // Update the service
       return await serviceManager.changeProvider(provider, newConfig);
@@ -666,7 +689,7 @@ class BrowserManager {
       const savedConfig = result.serviceConfig || {};
       
       // Get default config
-      const defaultConfig = config.providers[provider] || {};
+      const defaultConfig = serviceConfig.providers[provider] || {};
       
       // Merge configs
       const providerConfig = { ...defaultConfig, ...savedConfig };

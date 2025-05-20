@@ -101,6 +101,7 @@ const appDefaults = {
     promptHistory: true,
     notificationsEnabled: true,
     debugMode: process.env.NODE_ENV !== 'production',
+    detailedApiLogging: true, // Enable logging of detailed API requests and responses
   },
   
   // Environment settings
